@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Olive Space</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f5f5f0;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #556B2F;
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px;
+      flex-wrap: wrap;
+    }
+    .icon-card {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      text-align: center;
+      cursor: pointer;
+      width: 200px;
+    }
+    .quote-box {
+      padding: 20px;
+      margin: 20px;
+      background: linear-gradient(135deg, #dbe8b0, #c4d6a4);
+      border-radius: 20px;
+    }
+    .vision-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 10px;
+      border: 2px dashed #6B8E23;
+      background: #f0f8e0;
+      border-radius: 10px;
+      min-height: 300px;
+    }
+    .vision-item {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      overflow: hidden;
+      position: relative;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .vision-item img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .vision-item button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(0,0,0,0.5);
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+    }
+    #upload-section {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+    #upload-section input[type="file"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #6B8E23;
+      border-radius: 5px;
+      background: white;
+    }
+    #upload-section button {
+      background-color: #6B8E23;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #upload-section button:hover {
+      background-color: #556B2F;
+    }
+    .upload-instructions {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌿 My Olive Space</h1>
+  </header>
+
+  <div class="container">
+    <div class="icon-card" onclick="location.href='todo.html'">
+      <h2>📋 To-Do List</h2>
+    </div>
+    <div class="icon-card" onclick="location.href='bucket.html'">
+      <h2>🌟 Bucket List</h2>
+    </div>
+    <div class="icon-card" onclick="location.href='calendar.html'">
+      <h2>📅 Goal Calendar</h2>
+    </div>
+  </div>
+
+  <div class="quote-box">
+    <h2>📌 Vision Board</h2>
+    <p class="upload-instructions">Upload images that inspire your goals and dreams</p>
+    <div id="upload-section">
+      <input type="file" id="upload" accept="image/*" multiple>
+      <button id="upload-btn" onclick="uploadImage()">Upload</button>
+    </div>
+    <div class="vision-board" id="vision-board"></div>
+  </div>
+
+  <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCMoZ9db7e2ej5Ck1nYBp5H2Q4kqufICZI",
+    authDomain: "try-it-d242c.firebaseapp.com",
+    projectId: "try-it-d242c",
+    storageBucket: "try-it-d242c.appspot.com",
+    messagingSenderId: "901984593426",
+    appId: "1:901984593426:web:92c9bf6f072033ff2a9acb"
+  };
+
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  const uploadInput = document.getElementById('upload');
+  const uploadBtn = document.getElementById('upload-btn');
+  const board = document.getElementById('vision-board');
+
+  function uploadImage() {
+    const files = uploadInput.files;
+    if (!files || files.length === 0) {
+      alert("Please select at least one image.");
+      return;
+    }
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = 'Uploading <span class="loading"></span>';
+
+    const uploadPromises = [];
+
+    Array.from(files).forEach(file => {
+      if (!file.type.match('image.*')) {
+        alert(`Skipping ${file.name} - only image files are allowed`);
+        return;
+      }
+
+      const fileRef = storage.ref().child(`vision/${Date.now()}-${file.name}`);
+      const uploadTask = fileRef.put(file);
+
+      const promise = uploadTask.then(snapshot => {
+        console.log("Upload successful:", file.name);
+        return snapshot.ref.getDownloadURL();
+      }).then(downloadURL => {
+        console.log("Download URL:", downloadURL);
+        return db.collection('vision').add({
+          src: downloadURL,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          name: file.name
+        });
+      }).catch(error => {
+        console.error("Upload error:", error);
+        alert(`Upload failed for ${file.name}`);
+      });
+
+      uploadPromises.push(promise);
+    });
+
+    Promise.all(uploadPromises).then(() => {
+      alert("All images uploaded.");
+      uploadInput.value = "";
+      loadVisionBoard();
+    }).finally(() => {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload';
+    });
+  }
+
+  function loadVisionBoard() {
+    board.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">Loading images...</p>';
+
+    db.collection('vision').orderBy('timestamp', 'desc').get().then(snapshot => {
+      console.log("Fetched vision docs:", snapshot.size);
+      board.innerHTML = '';
+
+      if (snapshot.empty) {
+        board.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">No images yet. Upload some to get started!</p>';
+        return;
+      }
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        console.log("Doc data:", data);
+        const item = document.createElement('div');
+        item.className = 'vision-item';
+
+        const img = document.createElement('img');
+        img.src = data.src;
+        img.alt = data.name || 'Image';
+        item.appendChild(img);
+
+        const del = document.createElement('button');
+        del.innerText = '×';
+        del.onclick = () => deleteVisionItem(doc.id, data.src);
+        item.appendChild(del);
+
+        board.appendChild(item);
+      });
+    }).catch(error => {
+      console.error("Error loading board:", error);
+      board.innerHTML = '<p style="color:red">Error loading images. Check console.</p>';
+    });
+  }
+
+  function deleteVisionItem(id, srcUrl) {
+    if (!confirm("Delete this image?")) return;
+    db.collection('vision').doc(id).delete().then(() => {
+      const fileRef = storage.refFromURL(srcUrl);
+      return fileRef.delete();
+    }).then(() => {
+      loadVisionBoard();
+    }).catch(error => {
+      console.error("Delete failed:", error);
+      alert("Failed to delete image.");
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadVisionBoard);
+</script>
+
+</body>
+</html>
